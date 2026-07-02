@@ -1,0 +1,14 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Run (1 submission)",
+            "type": "dotnet",
+            "request": "launch",
+            "projectPath": "${workspaceFolder}/JotFormPopulator.csproj",
+            "args": [
+                "1"
+            ]
+        }
+    ]
+}
