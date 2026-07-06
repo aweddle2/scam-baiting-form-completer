@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "Run (1 submission)": {
+      "commandName": "Project",
+      "commandLineArgs": "1"
+    }
+  }
+}

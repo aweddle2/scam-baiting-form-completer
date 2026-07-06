@@ -63,6 +63,11 @@ public class JotFormPopulator : IFormPopulator
             var waitSeconds = Random.Shared.Next(2, 12);
             Console.WriteLine($"  Waiting {waitSeconds}s before next run…");
             Thread.Sleep(waitSeconds * 1000);
+            if (System.Diagnostics.Debugger.IsAttached)
+            {
+                Console.WriteLine("  [DEBUG] Press Enter to continue…");
+                Console.ReadLine();
+            }
         }
 
         Console.WriteLine($"\nAll {runCount} run(s) complete.");

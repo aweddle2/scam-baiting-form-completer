@@ -55,6 +55,11 @@ public class MicrosoftFormsPopulator : IFormPopulator
             var waitSeconds = Random.Shared.Next(2, 12);
             Console.WriteLine($"  Waiting {waitSeconds}s before next run…");
             Thread.Sleep(waitSeconds * 1000);
+            if (System.Diagnostics.Debugger.IsAttached)
+            {
+                Console.WriteLine("  [DEBUG] Press Enter to continue…");
+                Console.ReadLine();
+            }
         }
 
         Console.WriteLine($"\nAll {runCount} run(s) complete.");
@@ -153,59 +158,52 @@ public class MicrosoftFormsPopulator : IFormPopulator
 
         if (textInputs.Count > 0)
         {
-            var answer = MatchAnswer(label, answers);
-            if (answer != null)
-            {
-                textInputs[0].Clear();
-                textInputs[0].SendKeys(answer);
-                Console.WriteLine($"filled \"{answer}\"");
-            }
-            else
-            {
-                Console.WriteLine("text input — no answer configured");
-            }
+            var answer = MatchAnswer(label, answers) ?? "yes";
+            textInputs[0].Clear();
+            textInputs[0].SendKeys(answer);
+            Console.WriteLine($"filled \"{answer}\"");
             return;
         }
 
         var radios = container.FindElements(By.CssSelector("input[type='radio']"));
         if (radios.Count > 0)
         {
-            var desired = MatchAnswer(label, choiceAnswers);
-            if (desired != null)
+            var desired = MatchAnswer(label, choiceAnswers) ?? "yes";
+            IWebElement? fallback = null;
+            foreach (var radio in radios)
             {
-                foreach (var radio in radios)
+                var optionLabel = radio.FindElement(By.XPath("../..")).Text.Trim();
+                fallback ??= radio;
+                if (optionLabel.Contains(desired, StringComparison.OrdinalIgnoreCase))
                 {
-                    var optionLabel = radio.FindElement(By.XPath("../..")).Text.Trim();
-                    if (optionLabel.Contains(desired, StringComparison.OrdinalIgnoreCase))
-                    {
-                        radio.Click();
-                        Console.WriteLine($"selected \"{optionLabel}\"");
-                        return;
-                    }
+                    radio.Click();
+                    Console.WriteLine($"selected \"{optionLabel}\"");
+                    return;
                 }
             }
-            Console.WriteLine($"{radios.Count} radio option(s) — no answer configured");
+            fallback?.Click();
+            Console.WriteLine($"selected first option (no \"{desired}\" found)");
             return;
         }
 
         var checkboxes = container.FindElements(By.CssSelector("input[type='checkbox']"));
         if (checkboxes.Count > 0)
         {
-            var desired = MatchAnswer(label, choiceAnswers);
-            if (desired != null)
+            var desired = MatchAnswer(label, choiceAnswers) ?? "yes";
+            IWebElement? fallback = null;
+            foreach (var cb in checkboxes)
             {
-                foreach (var cb in checkboxes)
+                var cbLabel = cb.FindElement(By.XPath("..")).Text.Trim();
+                fallback ??= cb;
+                if (cbLabel.Contains(desired, StringComparison.OrdinalIgnoreCase))
                 {
-                    var cbLabel = cb.FindElement(By.XPath("..")).Text.Trim();
-                    if (cbLabel.Contains(desired, StringComparison.OrdinalIgnoreCase) && !cb.Selected)
-                    {
-                        cb.Click();
-                        Console.WriteLine($"checked \"{cbLabel}\"");
-                        return;
-                    }
+                    if (!cb.Selected) cb.Click();
+                    Console.WriteLine($"checked \"{cbLabel}\"");
+                    return;
                 }
             }
-            Console.WriteLine($"{checkboxes.Count} checkbox(es) — no answer configured");
+            if (fallback != null && !fallback.Selected) fallback.Click();
+            Console.WriteLine($"checked first option (no \"{desired}\" found)");
             return;
         }
 
@@ -230,16 +228,10 @@ public class MicrosoftFormsPopulator : IFormPopulator
             var labelText = ResolveAriaLabelledBy(labelledBy, driver);
             Console.Write($"  Input aria-labelledby=\"{labelledBy}\" (label: \"{labelText}\") → ");
             var answer = MatchAnswer(labelText, answers);
-            if (answer != null)
-            {
-                input.Clear();
-                input.SendKeys(answer);
-                Console.WriteLine($"filled \"{answer}\"");
-            }
-            else
-            {
-                Console.WriteLine("no answer configured");
-            }
+            var value = answer ?? "yes";
+            input.Clear();
+            input.SendKeys(value);
+            Console.WriteLine($"filled \"{value}\"");
         }
     }
 
