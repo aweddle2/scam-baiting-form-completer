@@ -5,7 +5,7 @@
             "name": "Run (1 submission)",
             "type": "dotnet",
             "request": "launch",
-            "projectPath": "${workspaceFolder}/src/JotFormPopulator/JotFormPopulator.csproj",
+            "projectPath": "${workspaceFolder}/src/ScamBaitingFormCompleter.csproj",
             "args": [
                 "1"
             ]
