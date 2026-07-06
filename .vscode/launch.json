@@ -2,13 +2,10 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Run (1 submission)",
+            "name": "C#: ScamBaitingFormCompleter Debug",
             "type": "dotnet",
             "request": "launch",
-            "projectPath": "${workspaceFolder}/src/ScamBaitingFormCompleter.csproj",
-            "args": [
-                "1"
-            ]
+            "projectPath": "${workspaceFolder}/src/ScamBaitingFormCompleter.csproj"
         }
     ]
 }

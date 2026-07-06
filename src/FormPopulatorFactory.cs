@@ -10,6 +10,9 @@ public static class FormPopulatorFactory
         if (host.EndsWith("forms.office.com", StringComparison.OrdinalIgnoreCase))
             return new MicrosoftFormsPopulator();
 
+        if (host.EndsWith("forms.fillout.com", StringComparison.OrdinalIgnoreCase))
+            return new FilloutFormPopulator();
+
         throw new NotSupportedException($"No form populator for domain: {host}");
     }
 }
