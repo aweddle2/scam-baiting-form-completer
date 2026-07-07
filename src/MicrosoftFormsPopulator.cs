@@ -45,10 +45,17 @@ public class MicrosoftFormsPopulator : IFormPopulator
                 ["Nationality"] = randomNationality,
             };
 
-            Console.WriteLine($"  Name: {randomName}  |  Email: {randomEmail}  |  Company: {randomCompany}");
-
             driver.Navigate().GoToUrl(url);
             WaitForForm(driver, wait);
+
+            if (IsFormClosed(driver))
+            {
+                Console.WriteLine("  Form is closed — stopping this URL.");
+                break;
+            }
+
+            Console.WriteLine($"  Name: {randomName}  |  Email: {randomEmail}  |  Company: {randomCompany}");
+
             FillForm(driver, answers, choiceAnswers);
             if (SubmitForm(driver))
             {
@@ -67,6 +74,14 @@ public class MicrosoftFormsPopulator : IFormPopulator
         }
 
         Console.WriteLine($"\nAll {runCount} run(s) complete.");
+    }
+
+    private static bool IsFormClosed(IWebDriver driver)
+    {
+        var js = (IJavaScriptExecutor)driver;
+        return driver.FindElements(By.CssSelector("[data-automation-id='errorTitle']"))
+            .Any(e => (js.ExecuteScript("return arguments[0].textContent", e) as string ?? "")
+                .Contains("This form is closed", StringComparison.OrdinalIgnoreCase));
     }
 
     private static void WaitForForm(IWebDriver driver, WebDriverWait wait)

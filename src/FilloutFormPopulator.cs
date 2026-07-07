@@ -41,7 +41,6 @@ public class FilloutFormPopulator : IFormPopulator
                 ["Age"] = randomAge,
             };
 
-            Console.WriteLine($"  Name: {randomName}  |  Email: {randomEmail}  |  Company: {randomCompany}");
 
             driver.Navigate().GoToUrl(url);
 
@@ -56,6 +55,14 @@ public class FilloutFormPopulator : IFormPopulator
                 catch (StaleElementReferenceException) { return false; }
             });
             Thread.Sleep(2000);
+
+            if (IsPageNotFound(driver))
+            {
+                Console.WriteLine("  Page not found — stopping this URL.");
+                break;
+            }
+
+            Console.WriteLine($"  Name: {randomName}  |  Email: {randomEmail}  |  Company: {randomCompany}");
 
             Console.WriteLine("  Scanning questions…");
             var questionContainers = driver.FindElements(By.CssSelector(
@@ -84,6 +91,14 @@ public class FilloutFormPopulator : IFormPopulator
         }
 
         Console.WriteLine($"\nAll {runCount} run(s) complete.");
+    }
+
+    private static bool IsPageNotFound(IWebDriver driver)
+    {
+        var js = (IJavaScriptExecutor)driver;
+        return driver.FindElements(By.CssSelector("h1"))
+            .Any(e => (js.ExecuteScript("return arguments[0].textContent", e) as string ?? "")
+                .Contains("Page not found", StringComparison.OrdinalIgnoreCase));
     }
 
     private static string ResolveAriaLabelledBy(string labelledBy, IWebDriver driver)
