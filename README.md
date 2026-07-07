@@ -5,4 +5,4 @@ This is not intended to DDOS the service that the scammers are using to host the
 
 Mostly written by claude and zero coding standards.
 
-Currently supports jotform forms, but other form submission services coming soon.
+Currently supports jotform, Microsoft Forms and Fillout forms.
