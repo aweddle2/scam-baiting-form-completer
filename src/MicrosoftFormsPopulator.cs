@@ -50,7 +50,11 @@ public class MicrosoftFormsPopulator : IFormPopulator
             driver.Navigate().GoToUrl(url);
             WaitForForm(driver, wait);
             FillForm(driver, answers, choiceAnswers);
-            SubmitForm(driver);
+            if (SubmitForm(driver))
+            {
+                Console.WriteLine("  Maximum responses reached — stopping this URL.");
+                break;
+            }
 
             var waitSeconds = Random.Shared.Next(2, 12);
             Console.WriteLine($"  Waiting {waitSeconds}s before next run…");
@@ -114,7 +118,8 @@ public class MicrosoftFormsPopulator : IFormPopulator
         }
     }
 
-    private static void SubmitForm(IWebDriver driver)
+    // Returns true if the form is closed (max responses reached).
+    private static bool SubmitForm(IWebDriver driver)
     {
         Console.WriteLine("  Submitting…");
         var submitSelectors = new[]
@@ -133,15 +138,22 @@ public class MicrosoftFormsPopulator : IFormPopulator
             if (submitBtn != null) break;
         }
 
-        if (submitBtn != null)
-        {
-            submitBtn.Click();
-            Console.WriteLine("  Done — check the browser for a confirmation message.");
-        }
-        else
+        if (submitBtn == null)
         {
             Console.WriteLine("  Submit button not found. Please submit the form manually in the browser.");
+            return false;
         }
+
+        submitBtn.Click();
+        Thread.Sleep(2000);
+
+        var errorEl = driver.FindElements(By.CssSelector("[data-automation-id='submitError']"))
+            .FirstOrDefault(e => e.Displayed);
+        if (errorEl != null && errorEl.Text.Contains("maximum number of responses", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        Console.WriteLine("  Done — check the browser for a confirmation message.");
+        return false;
     }
 
     private static void ProcessQuestion(
