@@ -1,105 +1,70 @@
 using OpenQA.Selenium;
-using OpenQA.Selenium.Chrome;
 using OpenQA.Selenium.Support.UI;
 
-public class MicrosoftFormsPopulator : IFormPopulator
+public class MicrosoftFormsPopulator : FormPopulatorBase
 {
-    public void Run(string url, int runCount)
+    private static readonly Dictionary<string, string> ChoiceAnswers = new(StringComparer.OrdinalIgnoreCase)
     {
-        var choiceAnswers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        ["What type of work schedule are you interested in ?"] = "Part time",
+    };
+
+    public MicrosoftFormsPopulator(IWebDriver driver, WebDriverWait wait)
+        : base(driver, wait) { }
+
+    protected override bool RunIteration(string url)
+    {
+        var randomName = FormData.Names[Random.Shared.Next(FormData.Names.Length)];
+        var nameParts = randomName.ToLowerInvariant().Split(' ');
+        var randomEmail = $"{string.Concat(nameParts)}{Random.Shared.Next(1950, 2006)}@{FormData.EmailProviders[Random.Shared.Next(FormData.EmailProviders.Length)]}";
+        var randomCompany = FormData.Ftse100Companies[Random.Shared.Next(FormData.Ftse100Companies.Length)];
+        var randomGender = FormData.GenderIdentities[Random.Shared.Next(FormData.GenderIdentities.Length)];
+        var randomPhone = $"({Random.Shared.Next(200, 1000)}) {Random.Shared.Next(200, 1000)}-{Random.Shared.Next(0, 10000):D4}";
+        var randomJob = FormData.JobTitles[Random.Shared.Next(FormData.JobTitles.Length)];
+        var randomAge = Random.Shared.Next(18, 66).ToString();
+        var randomNationality = FormData.Countries[Random.Shared.Next(FormData.Countries.Length)];
+
+        var answers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
-            ["What type of work schedule are you interested in ?"] = "Part time",
+            ["Name"] = randomName,
+            ["Email"] = randomEmail,
+            ["Company"] = randomCompany,
+            ["Gender"] = randomGender,
+            ["Phone"] = randomPhone,
+            ["Current Job"] = randomJob,
+            ["Age"] = randomAge,
+            ["Nationality"] = randomNationality,
         };
 
-        var chromeOptions = new ChromeOptions();
-        // chromeOptions.AddArgument("--headless=new");
-        chromeOptions.AddArgument("--start-maximized");
+        _driver.Navigate().GoToUrl(url);
+        WaitForFormLoad();
 
-        using var driver = new ChromeDriver(chromeOptions);
-        driver.Manage().Timeouts().ImplicitWait = TimeSpan.FromSeconds(5);
-        var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(30));
-
-        for (int run = 1; run <= runCount; run++)
+        if (IsFormClosed())
         {
-            Console.WriteLine($"\n=== Run {run}/{runCount} ===");
-
-            var randomName = FormData.Names[Random.Shared.Next(FormData.Names.Length)];
-            var nameParts = randomName.ToLowerInvariant().Split(' ');
-            var randomEmail = $"{string.Concat(nameParts)}{Random.Shared.Next(1950, 2006)}@{FormData.EmailProviders[Random.Shared.Next(FormData.EmailProviders.Length)]}";
-            var randomCompany = FormData.Ftse100Companies[Random.Shared.Next(FormData.Ftse100Companies.Length)];
-            var randomGender = FormData.GenderIdentities[Random.Shared.Next(FormData.GenderIdentities.Length)];
-            var randomPhone = $"({Random.Shared.Next(200, 1000)}) {Random.Shared.Next(200, 1000)}-{Random.Shared.Next(0, 10000):D4}";
-            var randomJob = FormData.JobTitles[Random.Shared.Next(FormData.JobTitles.Length)];
-            var randomAge = Random.Shared.Next(18, 66).ToString();
-            var randomNationality = FormData.Countries[Random.Shared.Next(FormData.Countries.Length)];
-
-            var answers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-            {
-                ["Name"] = randomName,
-                ["Email"] = randomEmail,
-                ["Company"] = randomCompany,
-                ["Gender"] = randomGender,
-                ["Phone"] = randomPhone,
-                ["Current Job"] = randomJob,
-                ["Age"] = randomAge,
-                ["Nationality"] = randomNationality,
-            };
-
-            driver.Navigate().GoToUrl(url);
-            WaitForForm(driver, wait);
-
-            if (IsFormClosed(driver))
-            {
-                Console.WriteLine("  Form is closed — stopping this URL.");
-                break;
-            }
-
-            Console.WriteLine($"  Name: {randomName}  |  Email: {randomEmail}  |  Company: {randomCompany}");
-
-            FillForm(driver, answers, choiceAnswers);
-            if (SubmitForm(driver))
-            {
-                Console.WriteLine("  Maximum responses reached — stopping this URL.");
-                break;
-            }
-
-            var waitSeconds = Random.Shared.Next(2, 12);
-            Console.WriteLine($"  Waiting {waitSeconds}s before next run…");
-            Thread.Sleep(waitSeconds * 1000);
-            if (System.Diagnostics.Debugger.IsAttached)
-            {
-                Console.WriteLine("  [DEBUG] Press Enter to continue…");
-                Console.ReadLine();
-            }
+            Console.WriteLine("  Form is closed — stopping this URL.");
+            return false;
         }
 
-        Console.WriteLine($"\nAll {runCount} run(s) complete.");
+        Console.WriteLine($"  Name: {randomName}  |  Email: {randomEmail}  |  Company: {randomCompany}");
+
+        FillForm(answers, ChoiceAnswers);
+        if (SubmitForm())
+        {
+            Console.WriteLine("  Maximum responses reached — stopping this URL.");
+            return false;
+        }
+
+        return true;
     }
 
-    private static bool IsFormClosed(IWebDriver driver)
+    private bool IsFormClosed()
     {
-        var js = (IJavaScriptExecutor)driver;
-        return driver.FindElements(By.CssSelector("[data-automation-id='errorTitle']"))
+        var js = (IJavaScriptExecutor)_driver;
+        return _driver.FindElements(By.CssSelector("[data-automation-id='errorTitle']"))
             .Any(e => (js.ExecuteScript("return arguments[0].textContent", e) as string ?? "")
                 .Contains("This form is closed", StringComparison.OrdinalIgnoreCase));
     }
 
-    private static void WaitForForm(IWebDriver driver, WebDriverWait wait)
-    {
-        Console.WriteLine("  Waiting for form to load…");
-        wait.Until(d =>
-        {
-            try
-            {
-                var loadingElements = d.FindElements(By.CssSelector("[class*='loading'], [aria-label='Loading']"));
-                return loadingElements.All(e => !e.Displayed);
-            }
-            catch (StaleElementReferenceException) { return false; }
-        });
-    }
-
-    private static void FillForm(
-        IWebDriver driver,
+    private void FillForm(
         Dictionary<string, string> answers,
         Dictionary<string, string> choiceAnswers)
     {
@@ -114,27 +79,27 @@ public class MicrosoftFormsPopulator : IFormPopulator
         var questionContainers = new List<IWebElement>();
         foreach (var selector in questionSelectors)
         {
-            var found = driver.FindElements(By.CssSelector(selector));
+            var found = _driver.FindElements(By.CssSelector(selector));
             if (found.Count > 0) { questionContainers.AddRange(found); break; }
         }
 
         if (questionContainers.Count == 0)
         {
             Console.WriteLine("  Standard question containers not found — falling back to aria-labelledby inputs.");
-            var inputs = driver.FindElements(By.CssSelector("input[aria-labelledby], textarea[aria-labelledby]"));
+            var inputs = _driver.FindElements(By.CssSelector("input[aria-labelledby], textarea[aria-labelledby]"));
             Console.WriteLine($"  Found {inputs.Count} labelled input(s).");
-            FillInputs(inputs, answers, driver);
+            FillInputs(inputs, answers);
         }
         else
         {
             Console.WriteLine($"  Found {questionContainers.Count} question(s).");
             foreach (var container in questionContainers)
-                ProcessQuestion(container, driver, answers, choiceAnswers);
+                ProcessQuestion(container, answers, choiceAnswers);
         }
     }
 
     // Returns true if the form is closed (max responses reached).
-    private static bool SubmitForm(IWebDriver driver)
+    private bool SubmitForm()
     {
         Console.WriteLine("  Submitting…");
         var submitSelectors = new[]
@@ -149,7 +114,7 @@ public class MicrosoftFormsPopulator : IFormPopulator
         IWebElement? submitBtn = null;
         foreach (var sel in submitSelectors)
         {
-            submitBtn = driver.FindElements(By.CssSelector(sel)).FirstOrDefault(e => e.Displayed);
+            submitBtn = _driver.FindElements(By.CssSelector(sel)).FirstOrDefault(e => e.Displayed);
             if (submitBtn != null) break;
         }
 
@@ -162,7 +127,7 @@ public class MicrosoftFormsPopulator : IFormPopulator
         submitBtn.Click();
         Thread.Sleep(2000);
 
-        var errorEl = driver.FindElements(By.CssSelector("[data-automation-id='submitError']"))
+        var errorEl = _driver.FindElements(By.CssSelector("[data-automation-id='submitError']"))
             .FirstOrDefault(e => e.Displayed);
         if (errorEl != null && errorEl.Text.Contains("maximum number of responses", StringComparison.OrdinalIgnoreCase))
             return true;
@@ -171,13 +136,12 @@ public class MicrosoftFormsPopulator : IFormPopulator
         return false;
     }
 
-    private static void ProcessQuestion(
+    private void ProcessQuestion(
         IWebElement container,
-        IWebDriver driver,
         Dictionary<string, string> answers,
         Dictionary<string, string> choiceAnswers)
     {
-        var label = GetLabel(container, driver);
+        var label = GetLabel(container);
         Console.Write($"  Question: \"{label}\" → ");
 
         var textInputs = container.FindElements(By.CssSelector(
@@ -244,52 +208,42 @@ public class MicrosoftFormsPopulator : IFormPopulator
         Console.WriteLine("(no interactive input found)");
     }
 
-    private static void FillInputs(
+    private void FillInputs(
         IReadOnlyCollection<IWebElement> inputs,
-        Dictionary<string, string> answers,
-        IWebDriver driver)
+        Dictionary<string, string> answers)
     {
         foreach (var input in inputs)
         {
             var labelledBy = input.GetDomAttribute("aria-labelledby") ?? "";
-            var labelText = ResolveAriaLabelledBy(labelledBy, driver);
+            var labelText = ResolveAriaLabelledBy(labelledBy);
             Console.Write($"  Input aria-labelledby=\"{labelledBy}\" (label: \"{labelText}\") → ");
-            var answer = MatchAnswer(labelText, answers);
-            var value = answer ?? "yes";
+            var value = MatchAnswer(labelText, answers) ?? "yes";
             input.Clear();
             input.SendKeys(value);
             Console.WriteLine($"filled \"{value}\"");
         }
     }
 
-    private static string GetLabel(IWebElement container, IWebDriver driver)
+    private string GetLabel(IWebElement container)
     {
         var input = container.FindElements(By.CssSelector("[aria-labelledby]")).FirstOrDefault();
         if (input != null)
         {
-            var text = ResolveAriaLabelledBy(input.GetDomAttribute("aria-labelledby") ?? "", driver);
+            var text = ResolveAriaLabelledBy(input.GetDomAttribute("aria-labelledby") ?? "");
             if (!string.IsNullOrWhiteSpace(text)) return text;
         }
         return "(unlabelled)";
     }
 
-    private static string ResolveAriaLabelledBy(string labelledBy, IWebDriver driver)
+    private string ResolveAriaLabelledBy(string labelledBy)
     {
         if (string.IsNullOrEmpty(labelledBy)) return "";
         var questionId = labelledBy.Split(' ')
             .FirstOrDefault(id => id.StartsWith("QuestionId_", StringComparison.Ordinal));
         if (questionId == null) return "";
-        var labelEl = driver.FindElements(By.Id(questionId)).FirstOrDefault();
+        var labelEl = _driver.FindElements(By.Id(questionId)).FirstOrDefault();
         if (labelEl == null) return "";
-        var js = (IJavaScriptExecutor)driver;
+        var js = (IJavaScriptExecutor)_driver;
         return ((js.ExecuteScript("return arguments[0].textContent", labelEl) as string) ?? "").Trim();
-    }
-
-    private static string? MatchAnswer(string label, Dictionary<string, string> answers)
-    {
-        foreach (var kv in answers)
-            if (label.Contains(kv.Key, StringComparison.OrdinalIgnoreCase))
-                return kv.Value;
-        return null;
     }
 }

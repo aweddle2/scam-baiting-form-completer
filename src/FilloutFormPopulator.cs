@@ -1,115 +1,96 @@
 using OpenQA.Selenium;
-using OpenQA.Selenium.Chrome;
 using OpenQA.Selenium.Support.UI;
 
-public class FilloutFormPopulator : IFormPopulator
+public class FilloutFormPopulator : FormPopulatorBase
 {
     private static readonly Dictionary<string, string> ChoiceAnswers =
         new(StringComparer.OrdinalIgnoreCase);
 
-    public void Run(string url, int runCount)
+    public FilloutFormPopulator(IWebDriver driver, WebDriverWait wait)
+        : base(driver, wait) { }
+
+    protected override void WaitBetweenRuns()
     {
-        var chromeOptions = new ChromeOptions();
-        // chromeOptions.AddArgument("--headless=new");
-        chromeOptions.AddArgument("--start-maximized");
-
-        using var driver = new ChromeDriver(chromeOptions);
-        driver.Manage().Timeouts().ImplicitWait = TimeSpan.FromSeconds(5);
-        var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(30));
-
-        for (int run = 1; run <= runCount; run++)
-        {
-            Console.WriteLine($"\n=== Run {run}/{runCount} ===");
-
-            var randomName = FormData.Names[Random.Shared.Next(FormData.Names.Length)];
-            var nameParts = randomName.ToLowerInvariant().Split(' ');
-            var randomEmail = $"{string.Concat(nameParts)}{Random.Shared.Next(1950, 2006)}@{FormData.EmailProviders[Random.Shared.Next(FormData.EmailProviders.Length)]}";
-            var randomCompany = FormData.Ftse100Companies[Random.Shared.Next(FormData.Ftse100Companies.Length)];
-            var randomGender = FormData.GenderIdentities[Random.Shared.Next(FormData.GenderIdentities.Length)];
-            var randomPhone = $"({Random.Shared.Next(200, 1000)}) {Random.Shared.Next(200, 1000)}-{Random.Shared.Next(0, 10000):D4}";
-            var randomJob = FormData.JobTitles[Random.Shared.Next(FormData.JobTitles.Length)];
-            var randomAge = Random.Shared.Next(18, 66).ToString();
-
-            var answers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-            {
-                ["Please provide your full name"] = randomName,
-                ["Provide your Email"] = randomEmail,
-                ["Company"] = randomCompany,
-                ["Gender"] = randomGender,
-                ["Phone"] = randomPhone,
-                ["Current Job"] = randomJob,
-                ["Age"] = randomAge,
-            };
-
-
-            driver.Navigate().GoToUrl(url);
-
-            Console.WriteLine("  Waiting for form to load…");
-            wait.Until(d =>
-            {
-                try
-                {
-                    var loadingElements = d.FindElements(By.CssSelector("[class*='loading'], [aria-label='Loading']"));
-                    return loadingElements.All(e => !e.Displayed);
-                }
-                catch (StaleElementReferenceException) { return false; }
-            });
-            Thread.Sleep(2000);
-
-            if (IsPageNotFound(driver))
-            {
-                Console.WriteLine("  Page not found — stopping this URL.");
-                break;
-            }
-
-            Console.WriteLine($"  Name: {randomName}  |  Email: {randomEmail}  |  Company: {randomCompany}");
-
-            Console.WriteLine("  Scanning questions…");
-            var questionContainers = driver.FindElements(By.CssSelector(
-                "div[class='flex w-full relative sm:flex-row flex-col']")).ToList();
-
-            if (questionContainers.Count == 0)
-            {
-                Console.WriteLine("  Standard question containers not found — falling back to aria-labelledby inputs.");
-                var inputs = driver.FindElements(By.CssSelector("input[aria-labelledby], textarea[aria-labelledby]"));
-                Console.WriteLine($"  Found {inputs.Count} labelled input(s).");
-                FillInputs(inputs, answers, driver);
-            }
-            else
-            {
-                Console.WriteLine($"  Found {questionContainers.Count} question(s).");
-                foreach (var container in questionContainers)
-                    ProcessQuestion(container, driver, answers);
-            }
-
-            Console.WriteLine("  Submitting…");
-            SubmitForm(driver, wait);
-
-            var waitSeconds = Random.Shared.Next(1, 61);
-            Console.WriteLine($"  Waiting {waitSeconds}s before next run…");
-            Thread.Sleep(waitSeconds * 1000);
-        }
-
-        Console.WriteLine($"\nAll {runCount} run(s) complete.");
+        var waitSeconds = Random.Shared.Next(1, 61);
+        Console.WriteLine($"  Waiting {waitSeconds}s before next run…");
+        Thread.Sleep(waitSeconds * 1000);
     }
 
-    private static bool IsPageNotFound(IWebDriver driver)
+    protected override bool RunIteration(string url)
     {
-        var js = (IJavaScriptExecutor)driver;
-        return driver.FindElements(By.CssSelector("h1"))
+        var randomName = FormData.Names[Random.Shared.Next(FormData.Names.Length)];
+        var nameParts = randomName.ToLowerInvariant().Split(' ');
+        var randomEmail = $"{string.Concat(nameParts)}{Random.Shared.Next(1950, 2006)}@{FormData.EmailProviders[Random.Shared.Next(FormData.EmailProviders.Length)]}";
+        var randomCompany = FormData.Ftse100Companies[Random.Shared.Next(FormData.Ftse100Companies.Length)];
+        var randomGender = FormData.GenderIdentities[Random.Shared.Next(FormData.GenderIdentities.Length)];
+        var randomPhone = $"({Random.Shared.Next(200, 1000)}) {Random.Shared.Next(200, 1000)}-{Random.Shared.Next(0, 10000):D4}";
+        var randomJob = FormData.JobTitles[Random.Shared.Next(FormData.JobTitles.Length)];
+        var randomAge = Random.Shared.Next(18, 66).ToString();
+
+        var answers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["Please provide your full name"] = randomName,
+            ["Provide your Email"] = randomEmail,
+            ["Company"] = randomCompany,
+            ["Gender"] = randomGender,
+            ["Phone"] = randomPhone,
+            ["Current Job"] = randomJob,
+            ["Age"] = randomAge,
+        };
+
+        _driver.Navigate().GoToUrl(url);
+        WaitForFormLoad();
+        Thread.Sleep(2000);
+
+        if (IsPageNotFound())
+        {
+            Console.WriteLine("  Page not found — stopping this URL.");
+            return false;
+        }
+
+        Console.WriteLine($"  Name: {randomName}  |  Email: {randomEmail}  |  Company: {randomCompany}");
+
+        Console.WriteLine("  Scanning questions…");
+        var questionContainers = _driver.FindElements(By.CssSelector(
+            "div[class='flex w-full relative sm:flex-row flex-col']")).ToList();
+
+        if (questionContainers.Count == 0)
+        {
+            Console.WriteLine("  Standard question containers not found — falling back to aria-labelledby inputs.");
+            var inputs = _driver.FindElements(By.CssSelector("input[aria-labelledby], textarea[aria-labelledby]"));
+            Console.WriteLine($"  Found {inputs.Count} labelled input(s).");
+            FillInputs(inputs, answers);
+        }
+        else
+        {
+            Console.WriteLine($"  Found {questionContainers.Count} question(s).");
+            foreach (var container in questionContainers)
+                ProcessQuestion(container, answers);
+        }
+
+        Console.WriteLine("  Submitting…");
+        SubmitForm();
+
+        return true;
+    }
+
+    private bool IsPageNotFound()
+    {
+        var js = (IJavaScriptExecutor)_driver;
+        return _driver.FindElements(By.CssSelector("h1"))
             .Any(e => (js.ExecuteScript("return arguments[0].textContent", e) as string ?? "")
                 .Contains("Page not found", StringComparison.OrdinalIgnoreCase));
     }
 
-    private static string ResolveAriaLabelledBy(string labelledBy, IWebDriver driver)
+    private string ResolveAriaLabelledBy(string labelledBy)
     {
         if (string.IsNullOrEmpty(labelledBy)) return "";
         var questionId = labelledBy.Split(' ')
             .FirstOrDefault(id => id.StartsWith("QuestionId_", StringComparison.Ordinal));
         if (questionId == null) return "";
-        var labelEl = driver.FindElements(By.Id(questionId)).FirstOrDefault();
+        var labelEl = _driver.FindElements(By.Id(questionId)).FirstOrDefault();
         if (labelEl == null) return "";
-        var js = (IJavaScriptExecutor)driver;
+        var js = (IJavaScriptExecutor)_driver;
         return ((js.ExecuteScript("return arguments[0].textContent", labelEl) as string) ?? "").Trim();
     }
 
@@ -119,9 +100,8 @@ public class FilloutFormPopulator : IFormPopulator
         return strong?.Text ?? "(unlabelled)";
     }
 
-    private static void ProcessQuestion(
+    private void ProcessQuestion(
         IWebElement container,
-        IWebDriver driver,
         Dictionary<string, string> answers)
     {
         var label = GetLabel(container);
@@ -198,12 +178,12 @@ public class FilloutFormPopulator : IFormPopulator
         Console.WriteLine("(no interactive input found)");
     }
 
-    private static void FillInputs(IReadOnlyCollection<IWebElement> inputs, Dictionary<string, string> answers, IWebDriver driver)
+    private void FillInputs(IReadOnlyCollection<IWebElement> inputs, Dictionary<string, string> answers)
     {
         foreach (var input in inputs)
         {
             var labelledBy = input.GetDomAttribute("aria-labelledby") ?? "";
-            var labelText = ResolveAriaLabelledBy(labelledBy, driver);
+            var labelText = ResolveAriaLabelledBy(labelledBy);
             Console.Write($"Input aria-labelledby=\"{labelledBy}\" (label: \"{labelText}\") → ");
             var answer = MatchAnswer(labelText, answers);
             if (answer != null)
@@ -219,17 +199,9 @@ public class FilloutFormPopulator : IFormPopulator
         }
     }
 
-    private static string? MatchAnswer(string label, Dictionary<string, string> answers)
+    private void SubmitForm()
     {
-        foreach (var kv in answers)
-            if (label.Contains(kv.Key, StringComparison.OrdinalIgnoreCase))
-                return kv.Value;
-        return null;
-    }
-
-    private static void SubmitForm(IWebDriver driver, WebDriverWait wait)
-    {
-        var submitBtn = driver.FindElements(By.CssSelector("button[type='button']"))
+        var submitBtn = _driver.FindElements(By.CssSelector("button[type='button']"))
             .FirstOrDefault(e => e.Displayed);
 
         if (submitBtn != null)
