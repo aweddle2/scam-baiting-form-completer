@@ -17,13 +17,13 @@ public abstract class FormPopulatorBase : IFormPopulator
         for (int run = 1; run <= runCount; run++)
         {
             Console.WriteLine($"\n=== Run {run}/{runCount} ===");
-            if (!RunIteration(url)) break;
+            if (!RunIteration(url, FormAnswers.Build())) break;
             WaitBetweenRuns();
         }
-        Console.WriteLine($"\nAll {runCount} run(s) complete.");
+        Console.WriteLine($"\nAll run(s) complete.");
     }
 
-    protected abstract bool RunIteration(string url);
+    protected abstract bool RunIteration(string url, Dictionary<string, string> answers);
 
     protected virtual void WaitBetweenRuns()
     {

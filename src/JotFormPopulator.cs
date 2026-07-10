@@ -6,7 +6,7 @@ public class JotFormPopulator : FormPopulatorBase
     public JotFormPopulator(IWebDriver driver, WebDriverWait wait)
         : base(driver, wait) { }
 
-    protected override bool RunIteration(string url)
+    protected override bool RunIteration(string url, Dictionary<string, string> answers)
     {
         _driver.Navigate().GoToUrl(url);
         WaitForForm();
@@ -14,44 +14,9 @@ public class JotFormPopulator : FormPopulatorBase
         if (IsOverQuota())
             return false;
 
-        var randomName = FormData.Names[Random.Shared.Next(FormData.Names.Length)];
-        var joinedName = new string(string.Concat(randomName.ToLowerInvariant().Split(' '))
-            .Where(c => char.IsAsciiLetterOrDigit(c) || c is '.' or '-' or '_' or '+').ToArray());
-        var randomEmail = $"{joinedName}{Random.Shared.Next(1950, 2006)}@{FormData.EmailProviders[Random.Shared.Next(FormData.EmailProviders.Length)]}";
-        var randomPhone = $"+1{Random.Shared.Next(200, 1000)}{Random.Shared.Next(200, 1000)}{Random.Shared.Next(0, 10000):D4}";
-        var randomAreaCode = Random.Shared.Next(200, 1000).ToString();
-        var randomPhoneNoAreaCode = Random.Shared.Next(200, 1000).ToString() + Random.Shared.Next(0, 10000).ToString("D4");
-        var randomAge = Random.Shared.Next(18, 55).ToString();
-        var randomNationality = FormData.Countries[Random.Shared.Next(FormData.Countries.Length)];
-        var randomLocation = FormData.Cities[Random.Shared.Next(FormData.Cities.Length)];
-        var telegramUsername = $"@{joinedName}{Random.Shared.Next(100, 999)}";
+        Console.WriteLine($"  Name: {answers["name"]}  |  Email: {answers["email"]}  |  Location: {answers["location"]}");
 
-        Console.WriteLine($"  Name: {randomName}  |  Email: {randomEmail}  |  Location: {randomLocation}");
-
-        var textAnswers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["name"] = randomName,
-            ["age"] = randomAge,
-            ["whatsapp"] = randomPhone,
-            ["phone"] = randomPhone,
-            ["phoneNumber"] = randomPhoneNoAreaCode,
-            ["areaCode"] = randomAreaCode,
-            ["email"] = randomEmail,
-            ["telegram"] = telegramUsername,
-            ["nationality"] = $"{randomNationality}. No prior experience, fresher.",
-            ["experience"] = $"{randomNationality}. No prior experience, fresher.",
-            ["location"] = randomLocation,
-        };
-
-        var radioAnswers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["interested"] = "Yes",
-            ["previous"] = "No",
-            ["applied"] = "No",
-            ["similar"] = "No",
-        };
-
-        FillAndSubmit(textAnswers, radioAnswers);
+        FillAndSubmit(answers);
         return true;
     }
 
@@ -64,7 +29,6 @@ public class JotFormPopulator : FormPopulatorBase
                 var candidates = d.FindElements(By.CssSelector(
                     "li.form-line[data-type], div.form-line[data-type], [data-type*='control_']," +
                     " input[id^='input_'], textarea[id^='input_'], h2[class='modal-heading-title']"));
-                Console.WriteLine($"{candidates.Count} candidatse found.");
                 return candidates.Count > 0;
             }
             catch (StaleElementReferenceException) { return false; }
@@ -80,9 +44,7 @@ public class JotFormPopulator : FormPopulatorBase
                 .Contains("Form over quota", StringComparison.OrdinalIgnoreCase));
     }
 
-    private void FillAndSubmit(
-        Dictionary<string, string> textAnswers,
-        Dictionary<string, string> radioAnswers)
+    private void FillAndSubmit(Dictionary<string, string> answers)
     {
         var js = (IJavaScriptExecutor)_driver;
         int page = 1;
@@ -90,7 +52,7 @@ public class JotFormPopulator : FormPopulatorBase
         while (true)
         {
             Console.WriteLine($"  --- Page {page} ---");
-            FillVisibleFields(js, textAnswers, radioAnswers);
+            FillVisibleFields(js, answers);
 
             var nextBtn = FindVisible(
                 "button[class='jfWelcome-button']",
@@ -127,8 +89,7 @@ public class JotFormPopulator : FormPopulatorBase
 
     private void FillVisibleFields(
         IJavaScriptExecutor js,
-        Dictionary<string, string> textAnswers,
-        Dictionary<string, string> radioAnswers)
+        Dictionary<string, string> answers)
     {
         var lines = _driver.FindElements(By.CssSelector("div[class='jfField']"))
             .Where(l => l.Displayed)
@@ -157,7 +118,7 @@ public class JotFormPopulator : FormPopulatorBase
                 case "areaCode":
                 case "phone":
                     {
-                        var val = MatchAnswer(label, textAnswers) ?? "yes";
+                        var val = MatchAnswer(label, answers) ?? "yes";
                         var input = line.FindElements(By.TagName("input")).FirstOrDefault(e => e.Displayed && e.Enabled);
                         if (input != null) { input.Clear(); input.SendKeys(val); Console.WriteLine($"filled \"{val}\""); }
                         else Console.WriteLine("input not found");
@@ -171,7 +132,7 @@ public class JotFormPopulator : FormPopulatorBase
                             .FirstOrDefault(e => e.Displayed && e.Enabled);
                         if (input != null)
                         {
-                            var val = MatchAnswer(label, textAnswers) ?? "yes";
+                            var val = MatchAnswer(label, answers) ?? "yes";
                             input.Clear(); input.SendKeys(val); Console.WriteLine($"filled \"{val}\"");
                         }
                         else Console.WriteLine("input not found");
@@ -181,7 +142,7 @@ public class JotFormPopulator : FormPopulatorBase
                 case "control_yesno":
                 case "control_radio":
                     {
-                        var desired = MatchAnswer(label, radioAnswers) ?? "Yes";
+                        var desired = MatchAnswer(label, answers) ?? "Yes";
                         var radios = line.FindElements(By.CssSelector("input[type='radio']"));
                         bool clicked = false;
                         foreach (var radio in radios)

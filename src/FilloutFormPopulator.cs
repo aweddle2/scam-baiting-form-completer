@@ -3,9 +3,6 @@ using OpenQA.Selenium.Support.UI;
 
 public class FilloutFormPopulator : FormPopulatorBase
 {
-    private static readonly Dictionary<string, string> ChoiceAnswers =
-        new(StringComparer.OrdinalIgnoreCase);
-
     public FilloutFormPopulator(IWebDriver driver, WebDriverWait wait)
         : base(driver, wait) { }
 
@@ -16,28 +13,8 @@ public class FilloutFormPopulator : FormPopulatorBase
         Thread.Sleep(waitSeconds * 1000);
     }
 
-    protected override bool RunIteration(string url)
+    protected override bool RunIteration(string url, Dictionary<string, string> answers)
     {
-        var randomName = FormData.Names[Random.Shared.Next(FormData.Names.Length)];
-        var nameParts = randomName.ToLowerInvariant().Split(' ');
-        var randomEmail = $"{string.Concat(nameParts)}{Random.Shared.Next(1950, 2006)}@{FormData.EmailProviders[Random.Shared.Next(FormData.EmailProviders.Length)]}";
-        var randomCompany = FormData.Ftse100Companies[Random.Shared.Next(FormData.Ftse100Companies.Length)];
-        var randomGender = FormData.GenderIdentities[Random.Shared.Next(FormData.GenderIdentities.Length)];
-        var randomPhone = $"({Random.Shared.Next(200, 1000)}) {Random.Shared.Next(200, 1000)}-{Random.Shared.Next(0, 10000):D4}";
-        var randomJob = FormData.JobTitles[Random.Shared.Next(FormData.JobTitles.Length)];
-        var randomAge = Random.Shared.Next(18, 66).ToString();
-
-        var answers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["Please provide your full name"] = randomName,
-            ["Provide your Email"] = randomEmail,
-            ["Company"] = randomCompany,
-            ["Gender"] = randomGender,
-            ["Phone"] = randomPhone,
-            ["Current Job"] = randomJob,
-            ["Age"] = randomAge,
-        };
-
         _driver.Navigate().GoToUrl(url);
         WaitForFormLoad();
         Thread.Sleep(2000);
@@ -48,7 +25,7 @@ public class FilloutFormPopulator : FormPopulatorBase
             return false;
         }
 
-        Console.WriteLine($"  Name: {randomName}  |  Email: {randomEmail}  |  Company: {randomCompany}");
+        Console.WriteLine($"  Name: {answers["name"]}  |  Email: {answers["email"]}  |  Company: {answers["company"]}");
 
         Console.WriteLine("  Scanning questions…");
         var questionContainers = _driver.FindElements(By.CssSelector(
@@ -129,7 +106,7 @@ public class FilloutFormPopulator : FormPopulatorBase
         var radios = container.FindElements(By.CssSelector("input[type='radio']"));
         if (radios.Count > 0)
         {
-            var desired = MatchAnswer(label, ChoiceAnswers);
+            var desired = MatchAnswer(label, answers);
             if (desired != null)
             {
                 foreach (var radio in radios)
@@ -150,7 +127,7 @@ public class FilloutFormPopulator : FormPopulatorBase
         var checkboxes = container.FindElements(By.CssSelector("input[type='checkbox']"));
         if (checkboxes.Count > 0)
         {
-            var desired = MatchAnswer(label, ChoiceAnswers);
+            var desired = MatchAnswer(label, answers);
             if (desired != null)
             {
                 foreach (var cb in checkboxes)

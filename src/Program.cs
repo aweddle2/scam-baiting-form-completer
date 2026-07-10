@@ -15,9 +15,7 @@ using (var driver = CreateDriver())
 {
     foreach (var url in urls)
     {
-        Console.WriteLine($"\n{'=' * 60}");
         Console.WriteLine($"URL: {url}");
-        Console.WriteLine($"{'=' * 60}");
         FormPopulatorFactory.Create(url, driver).Run(url, runCount);
     }
 }

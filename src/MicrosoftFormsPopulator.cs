@@ -3,38 +3,11 @@ using OpenQA.Selenium.Support.UI;
 
 public class MicrosoftFormsPopulator : FormPopulatorBase
 {
-    private static readonly Dictionary<string, string> ChoiceAnswers = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ["What type of work schedule are you interested in ?"] = "Part time",
-    };
-
     public MicrosoftFormsPopulator(IWebDriver driver, WebDriverWait wait)
         : base(driver, wait) { }
 
-    protected override bool RunIteration(string url)
+    protected override bool RunIteration(string url, Dictionary<string, string> answers)
     {
-        var randomName = FormData.Names[Random.Shared.Next(FormData.Names.Length)];
-        var nameParts = randomName.ToLowerInvariant().Split(' ');
-        var randomEmail = $"{string.Concat(nameParts)}{Random.Shared.Next(1950, 2006)}@{FormData.EmailProviders[Random.Shared.Next(FormData.EmailProviders.Length)]}";
-        var randomCompany = FormData.Ftse100Companies[Random.Shared.Next(FormData.Ftse100Companies.Length)];
-        var randomGender = FormData.GenderIdentities[Random.Shared.Next(FormData.GenderIdentities.Length)];
-        var randomPhone = $"({Random.Shared.Next(200, 1000)}) {Random.Shared.Next(200, 1000)}-{Random.Shared.Next(0, 10000):D4}";
-        var randomJob = FormData.JobTitles[Random.Shared.Next(FormData.JobTitles.Length)];
-        var randomAge = Random.Shared.Next(18, 66).ToString();
-        var randomNationality = FormData.Countries[Random.Shared.Next(FormData.Countries.Length)];
-
-        var answers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["Name"] = randomName,
-            ["Email"] = randomEmail,
-            ["Company"] = randomCompany,
-            ["Gender"] = randomGender,
-            ["Phone"] = randomPhone,
-            ["Current Job"] = randomJob,
-            ["Age"] = randomAge,
-            ["Nationality"] = randomNationality,
-        };
-
         _driver.Navigate().GoToUrl(url);
         WaitForFormLoad();
 
@@ -44,9 +17,9 @@ public class MicrosoftFormsPopulator : FormPopulatorBase
             return false;
         }
 
-        Console.WriteLine($"  Name: {randomName}  |  Email: {randomEmail}  |  Company: {randomCompany}");
+        Console.WriteLine($"  Name: {answers["name"]}  |  Email: {answers["email"]}  |  Company: {answers["company"]}");
 
-        FillForm(answers, ChoiceAnswers);
+        FillForm(answers);
         if (SubmitForm())
         {
             Console.WriteLine("  Maximum responses reached — stopping this URL.");
@@ -64,9 +37,7 @@ public class MicrosoftFormsPopulator : FormPopulatorBase
                 .Contains("This form is closed", StringComparison.OrdinalIgnoreCase));
     }
 
-    private void FillForm(
-        Dictionary<string, string> answers,
-        Dictionary<string, string> choiceAnswers)
+    private void FillForm(Dictionary<string, string> answers)
     {
         Console.WriteLine("  Scanning questions…");
         var questionSelectors = new[]
@@ -94,7 +65,7 @@ public class MicrosoftFormsPopulator : FormPopulatorBase
         {
             Console.WriteLine($"  Found {questionContainers.Count} question(s).");
             foreach (var container in questionContainers)
-                ProcessQuestion(container, answers, choiceAnswers);
+                ProcessQuestion(container, answers);
         }
     }
 
@@ -136,13 +107,10 @@ public class MicrosoftFormsPopulator : FormPopulatorBase
         return false;
     }
 
-    private void ProcessQuestion(
-        IWebElement container,
-        Dictionary<string, string> answers,
-        Dictionary<string, string> choiceAnswers)
+    private void ProcessQuestion(IWebElement container, Dictionary<string, string> answers)
     {
         var label = GetLabel(container);
-        Console.Write($"  Question: \"{label}\" → ");
+        if (System.Diagnostics.Debugger.IsAttached) Console.Write($"  Question: \"{label}\" → ");
 
         var textInputs = container.FindElements(By.CssSelector(
             "input[type='text'], input:not([type]), input[type='email'], input[type='number'], textarea"));
@@ -152,14 +120,14 @@ public class MicrosoftFormsPopulator : FormPopulatorBase
             var answer = MatchAnswer(label, answers) ?? "yes";
             textInputs[0].Clear();
             textInputs[0].SendKeys(answer);
-            Console.WriteLine($"filled \"{answer}\"");
+            if (System.Diagnostics.Debugger.IsAttached) Console.WriteLine($"filled \"{answer}\"");
             return;
         }
 
         var radios = container.FindElements(By.CssSelector("input[type='radio']"));
         if (radios.Count > 0)
         {
-            var desired = MatchAnswer(label, choiceAnswers) ?? "yes";
+            var desired = MatchAnswer(label, answers) ?? "yes";
             IWebElement? fallback = null;
             foreach (var radio in radios)
             {
@@ -168,7 +136,7 @@ public class MicrosoftFormsPopulator : FormPopulatorBase
                 if (optionLabel.Contains(desired, StringComparison.OrdinalIgnoreCase))
                 {
                     radio.Click();
-                    Console.WriteLine($"selected \"{optionLabel}\"");
+                    if (System.Diagnostics.Debugger.IsAttached) Console.WriteLine($"selected \"{optionLabel}\"");
                     return;
                 }
             }
@@ -180,7 +148,7 @@ public class MicrosoftFormsPopulator : FormPopulatorBase
         var checkboxes = container.FindElements(By.CssSelector("input[type='checkbox']"));
         if (checkboxes.Count > 0)
         {
-            var desired = MatchAnswer(label, choiceAnswers) ?? "yes";
+            var desired = MatchAnswer(label, answers) ?? "yes";
             IWebElement? fallback = null;
             foreach (var cb in checkboxes)
             {
@@ -189,7 +157,7 @@ public class MicrosoftFormsPopulator : FormPopulatorBase
                 if (cbLabel.Contains(desired, StringComparison.OrdinalIgnoreCase))
                 {
                     if (!cb.Selected) cb.Click();
-                    Console.WriteLine($"checked \"{cbLabel}\"");
+                    if (System.Diagnostics.Debugger.IsAttached) Console.WriteLine($"checked \"{cbLabel}\"");
                     return;
                 }
             }
@@ -201,11 +169,11 @@ public class MicrosoftFormsPopulator : FormPopulatorBase
         var dropdowns = container.FindElements(By.CssSelector("[role='combobox'], [role='listbox'], select"));
         if (dropdowns.Count > 0)
         {
-            Console.WriteLine("dropdown — manual handling may be required");
+            if (System.Diagnostics.Debugger.IsAttached) Console.WriteLine("dropdown — manual handling may be required");
             return;
         }
 
-        Console.WriteLine("(no interactive input found)");
+        if (System.Diagnostics.Debugger.IsAttached) Console.WriteLine("(no interactive input found)");
     }
 
     private void FillInputs(
@@ -220,7 +188,7 @@ public class MicrosoftFormsPopulator : FormPopulatorBase
             var value = MatchAnswer(labelText, answers) ?? "yes";
             input.Clear();
             input.SendKeys(value);
-            Console.WriteLine($"filled \"{value}\"");
+            if (System.Diagnostics.Debugger.IsAttached) Console.WriteLine($"filled \"{value}\"");
         }
     }
 
