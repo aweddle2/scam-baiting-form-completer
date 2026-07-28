@@ -1,6 +1,8 @@
 using OpenQA.Selenium;
 using OpenQA.Selenium.Support.UI;
 
+namespace ScamBaitingFormCompleter.FormPopulators;
+
 public abstract class FormPopulatorBase : IFormPopulator
 {
     protected readonly IWebDriver _driver;
