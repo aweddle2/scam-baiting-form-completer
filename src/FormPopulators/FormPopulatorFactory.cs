@@ -1,6 +1,8 @@
 using OpenQA.Selenium;
 using OpenQA.Selenium.Support.UI;
 
+namespace ScamBaitingFormCompleter.FormPopulators;
+
 public static class FormPopulatorFactory
 {
     public static IFormPopulator Create(string url, IWebDriver driver)

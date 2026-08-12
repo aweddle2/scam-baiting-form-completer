@@ -1,6 +1,8 @@
 using OpenQA.Selenium;
 using OpenQA.Selenium.Support.UI;
 
+namespace ScamBaitingFormCompleter.FormPopulators;
+
 public class FilloutFormPopulator : FormPopulatorBase
 {
     public FilloutFormPopulator(IWebDriver driver, WebDriverWait wait)
