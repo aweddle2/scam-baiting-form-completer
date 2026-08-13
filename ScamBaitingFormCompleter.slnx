@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/ScamBaitingFormCompleter.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/ScamBaitingFormCompleter.Tests.csproj" />
+  </Folder>
+</Solution>

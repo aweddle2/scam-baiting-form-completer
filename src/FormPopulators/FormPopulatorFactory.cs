@@ -19,6 +19,11 @@ public static class FormPopulatorFactory
         if (host.EndsWith("forms.fillout.com", StringComparison.OrdinalIgnoreCase))
             return new FilloutFormPopulator(driver, wait);
 
+        // forms.gle short links redirect to docs.google.com.
+        if (host.EndsWith("docs.google.com", StringComparison.OrdinalIgnoreCase) ||
+            host.EndsWith("forms.gle", StringComparison.OrdinalIgnoreCase))
+            return new GoogleFormsPopulator(driver, wait);
+
         throw new NotSupportedException($"No form populator for domain: {host}");
     }
 

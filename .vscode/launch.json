@@ -6,6 +6,25 @@
             "type": "dotnet",
             "request": "launch",
             "projectPath": "${workspaceFolder}/src/ScamBaitingFormCompleter.csproj"
+        },
+        {
+            // Fallback: launches the built dll directly, so it does not depend on
+            // C# Dev Kit having the project loaded from the solution.
+            "name": "C#: ScamBaitingFormCompleter (direct, 1 submission)",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build",
+            "program": "${workspaceFolder}/src/bin/Debug/net10.0/ScamBaitingFormCompleter.dll",
+            // Matches the "Run (1 submission)" launchSettings profile — without this it
+            // defaults to 10 submissions per URL.
+            "args": [
+                "1"
+            ],
+            "cwd": "${workspaceFolder}/src",
+            // Must be a real terminal: with a debugger attached the app waits on
+            // Console.ReadLine() between runs.
+            "console": "integratedTerminal",
+            "stopAtEntry": false
         }
     ]
 }
